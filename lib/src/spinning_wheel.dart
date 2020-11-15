@@ -270,8 +270,8 @@ class _SpinningWheelState extends State<SpinningWheel>
 
     print(d.localPosition.dy);
     /// Pan location on the wheel
-    bool onTop = d.localPosition.dy <= 150;
-    bool onLeftSide = d.localPosition.dx <= 150;
+    bool onTop = d.localPosition.dy <= 100;
+    bool onLeftSide = d.localPosition.dx <= 100;
     bool onRightSide = !onLeftSide;
     bool onBottom = !onTop;
 
