@@ -55,6 +55,9 @@ class SpinningWheel extends StatefulWidget {
   /// callback function to be executed when the wheel selection changes
   final Function onUpdate;
 
+  /// callback function to be executed when the wheel selection changes
+  final Function onUpdateDirection;
+
   /// callback function to be executed when the animation stops
   final Function onEnd;
 
@@ -64,22 +67,23 @@ class SpinningWheel extends StatefulWidget {
   final Stream shouldStartOrStop;
 
   SpinningWheel(
-    this.image, {
-    @required this.width,
-    @required this.height,
-    @required this.dividers,
-    this.initialSpinAngle: 0.0,
-    this.spinResistance: 0.5,
-    this.canInteractWhileSpinning: true,
-    this.secondaryImage,
-    this.secondaryImageHeight,
-    this.secondaryImageWidth,
-    this.secondaryImageTop,
-    this.secondaryImageLeft,
-    this.onUpdate,
-    this.onEnd,
-    this.shouldStartOrStop,
-  })  : assert(width > 0.0 && height > 0.0),
+      this.image, {
+        @required this.width,
+        @required this.height,
+        @required this.dividers,
+        this.initialSpinAngle: 0.0,
+        this.spinResistance: 0.5,
+        this.canInteractWhileSpinning: true,
+        this.secondaryImage,
+        this.secondaryImageHeight,
+        this.secondaryImageWidth,
+        this.secondaryImageTop,
+        this.secondaryImageLeft,
+        this.onUpdate,
+        this.onUpdateDirection,
+        this.onEnd,
+        this.shouldStartOrStop,
+      })  : assert(width > 0.0 && height > 0.0),
         assert(spinResistance > 0.0 && spinResistance <= 1.0),
         assert(initialSpinAngle >= 0.0 && initialSpinAngle <= (2 * pi)),
         assert(secondaryImage == null ||
@@ -176,16 +180,18 @@ class _SpinningWheelState extends State<SpinningWheel>
 
   double get topSecondaryImage =>
       widget.secondaryImageTop ??
-      (widget.height / 2) - (widget.secondaryImageHeight / 2);
+          (widget.height / 2) - (widget.secondaryImageHeight / 2);
 
   double get leftSecondaryImage =>
       widget.secondaryImageLeft ??
-      (widget.width / 2) - (widget.secondaryImageWidth / 2);
+          (widget.width / 2) - (widget.secondaryImageWidth / 2);
 
   double get widthSecondaryImage => widget.secondaryImageWidth ?? widget.width;
 
   double get heightSecondaryImage =>
       widget.secondaryImageHeight ?? widget.height;
+
+  String direction = "";
 
   @override
   Widget build(BuildContext context) {
@@ -212,13 +218,13 @@ class _SpinningWheelState extends State<SpinningWheel>
           ),
           widget.secondaryImage != null
               ? Positioned(
-                  top: topSecondaryImage,
-                  left: leftSecondaryImage,
-                  child: Container(
-                    height: heightSecondaryImage,
-                    width: widthSecondaryImage,
-                    child: widget.secondaryImage,
-                  ))
+              top: topSecondaryImage,
+              left: leftSecondaryImage,
+              child: Container(
+                height: heightSecondaryImage,
+                width: widthSecondaryImage,
+                child: widget.secondaryImage,
+              ))
               : Container(),
         ],
       ),
@@ -260,8 +266,55 @@ class _SpinningWheelState extends State<SpinningWheel>
     }
   }
 
+  void _panHandler(DragUpdateDetails d) {
+
+    print(d.localPosition.dy);
+    /// Pan location on the wheel
+    bool onTop = d.localPosition.dy <= 150;
+    bool onLeftSide = d.localPosition.dx <= 150;
+    bool onRightSide = !onLeftSide;
+    bool onBottom = !onTop;
+
+    /// Pan movements
+    bool panUp = d.delta.dy <= 0.0;
+    bool panLeft = d.delta.dx <= 0.0;
+    bool panRight = !panLeft;
+    bool panDown = !panUp;
+
+    /// Absoulte change on axis
+    double yChange = d.delta.dy.abs();
+    double xChange = d.delta.dx.abs();
+
+    /// Directional change on wheel
+    double verticalRotation = (onRightSide && panDown) || (onLeftSide && panUp)
+        ? yChange
+        : yChange * -1;
+
+    double horizontalRotation = (onTop && panRight) || (onBottom && panLeft)
+        ? xChange
+        : xChange * -1;
+
+    // Total computed change
+    double rotationalChange = verticalRotation + horizontalRotation;
+
+    bool movingClockwise = rotationalChange > 0;
+    bool movingCounterClockwise = rotationalChange < 0;
+
+    rotationalChange > 0 ? print("movingClockwise") : print("movingCounterClockwise");
+
+    widget.onUpdateDirection(rotationalChange > 0);
+    // Now do something interesting with these computations!
+  }
+
   void _moveWheel(DragUpdateDetails details) {
-    if (!_userCanInteract) return;
+
+    _panHandler(details);
+
+    //print(details.globalPosition.direction);
+
+    //print(details.localPosition.direction);
+
+    // print(details.delta.direction);
 
     // user won't be able to get back in after dragin outside
     if (_offsetOutsideTimestamp != null) return;
@@ -311,7 +364,7 @@ class _SpinningWheelState extends State<SpinningWheel>
 
   void _startAnimation(Offset pixelsPerSecond) {
     var velocity =
-        _spinVelocity.getVelocity(_localPositionOnPanUpdate, pixelsPerSecond);
+    _spinVelocity.getVelocity(_localPositionOnPanUpdate, pixelsPerSecond);
 
     _localPositionOnPanUpdate = null;
     _isBackwards = velocity < 0;
